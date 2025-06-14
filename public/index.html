@@ -1,43 +1,109 @@
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #3e2c2a;
-    padding: 20px;
-    color: #eee;
-  }
-  #chat {
-    background: #fff;
-    padding: 15px;
-    height: 350px;
-    overflow-y: auto;
-    border: 2px solid #8c7651;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-  }
-  #msg {
-    width: calc(100% - 100px);
-    padding: 12px;
-    border: 1px solid #8c7651;
-    border-radius: 6px;
-    margin-right: 8px;
-  }
-  #send {
-    padding: 12px 20px;
-    background-color: #8c7651;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: bold;
-  }
-  #send:hover {
-    background-color: #a38a6f;
-  }
-  div.message {
-    background: #f5e9dd;
-    color: #3e2c2a;
-    padding: 6px 10px;
-    margin-bottom: 6px;
-    border-radius: 4px;
-  }
-</style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Live Chat</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #3e2c2a;
+      color: #eee;
+      padding: 20px;
+    }
+    #chat {
+      background: #fff;
+      padding: 15px;
+      height: 400px;
+      overflow-y: scroll;
+      border-radius: 10px;
+      margin-bottom: 10px;
+    }
+    .message {
+      background: #f5e9dd;
+      color: #333;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin: 10px 0;
+    }
+    .meta {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    #msg, #file {
+      width: 75%;
+      padding: 10px;
+    }
+    #send {
+      padding: 10px;
+      background: #8c7651;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h2>Anonymous Chat</h2>
+  <div id="chat"></div>
+
+  <input type="text" id="msg" placeholder="Type your message..." />
+  <input type="file" id="file" />
+  <button id="send">Send</button>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const chat = document.getElementById("chat");
+    const msg = document.getElementById("msg");
+    const file = document.getElementById("file");
+
+    document.getElementById("send").onclick = async () => {
+      if (file.files.length > 0) {
+        const formData = new FormData();
+        formData.append("image", file.files[0]);
+
+        const res = await fetch("/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const data = await res.json();
+        socket.emit("image", data.imageUrl);
+        file.value = '';
+      }
+
+      if (msg.value.trim()) {
+        socket.emit("message", msg.value);
+        msg.value = "";
+      }
+    };
+
+    socket.on("message", data => {
+      const div = document.createElement("div");
+      div.className = "message";
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = `[${data.time}] - ${data.ip}`;
+      div.appendChild(meta);
+
+      if (data.msg) {
+        const text = document.createElement("div");
+        text.textContent = data.msg;
+        div.appendChild(text);
+      }
+
+      if (data.img) {
+        const image = document.createElement("img");
+        image.src = data.img;
+        image.style.maxWidth = "200px";
+        image.style.borderRadius = "5px";
+        div.appendChild(image);
+      }
+
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    });
+  </script>
+</body>
+</html>
